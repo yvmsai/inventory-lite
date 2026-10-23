@@ -150,6 +150,9 @@ Base path `/api/v1`. Lists are paginated (`page`, `size` ≤ 100, `sort`).
 - A-14: Local seed data: one ADMIN (`admin@inventory.local`) and one STAFF (`staff@inventory.local`), with dev passwords documented in the README (local profile only), plus a few sample suppliers/products. In prod, the first ADMIN comes from `ADMIN_EMAIL` / `ADMIN_PASSWORD`.
 - A-15: The access token lives in memory; a page reload requires logging in again (ADR 0002).
 - A-16: The package is `com.inventorylite` (no organization named in the doc).
+- A-17: The dashboard low-stock list shows the 50 lowest items plus the total low-stock count, so it stays fast with 10,000 products.
+- A-18: Supplier and product edits send the `version` they loaded; a stale version returns 409 ("modified by someone else, reload").
+- A-19: Recording a movement returns 201 without a `Location` header, because movements have no get-by-id endpoint (they're read through the product's history).
 
 ## Open questions
 
@@ -167,13 +170,32 @@ Base path `/api/v1`. Lists are paginated (`page`, `size` ≤ 100, `sort`).
 
 ## Tasks
 
-- [ ] T1 foundation: scaffolding, base entity + auditing, error handling (problem details), security (JWT), app_user migration + seed, `POST /auth/login`, `GET /auth/me`, login page, app shell + routing
-- [ ] T2 users: user management API (create, list, patch role, deactivate/activate), tests (BR-2..5, A-10), Users screen + tests
-- [ ] T3 suppliers: migration, CRUD + search API, tests (BR-6, BR-7), Suppliers screen + tests
-- [ ] T4 products: migration, CRUD + search/filter API, tests (BR-8..12), Products screen + tests
-- [ ] T5 stock movements: migration, record + history API with row locking, tests (BR-13..18 incl. concurrency), Product detail screen + tests
-- [ ] T6 dashboard: dashboard API (BR-19..21), tests, Dashboard screen + tests
-- [ ] T7 verify: full test run, coverage gate, `npm audit`, OWASP checklist
-- [ ] T8 packaging: Dockerfiles, docker-compose, `.env.example`, launch and health check
+- [x] T1 foundation: scaffolding, base entity + auditing, error handling (problem details), security (JWT), app_user migration + seed, `POST /auth/login`, `GET /auth/me`, login page, app shell + routing
+- [x] T2 users: user management API (create, list, patch role, deactivate/activate), tests (BR-2..5, A-10), Users screen + tests
+- [x] T3 suppliers: migration, CRUD + search API, tests (BR-6, BR-7), Suppliers screen + tests
+- [x] T4 products: migration, CRUD + search/filter API, tests (BR-8..12), Products screen + tests
+- [x] T5 stock movements: migration, record + history API with row locking, tests (BR-13..18 incl. concurrency), Product detail screen + tests
+- [x] T6 dashboard: dashboard API (BR-19..21), tests, Dashboard screen + tests
+- [x] T7 verify: full test run, coverage gate, `npm audit`, OWASP checklist
+- [x] T8 packaging: Dockerfiles, docker-compose, `.env.example`, launch and health check
 - [ ] T9 CI: GitHub Actions workflow (phase 9, after checkpoint 2)
 - [ ] T10 deploy: render.yaml + deploy guide (phase 10, after checkpoint 2)
+
+## Verification (phase 7)
+
+- Backend `./mvnw verify`: 102 tests, 0 failures (unit, `@WebMvcTest` slices, Testcontainers PostgreSQL 17 integration incl. concurrent IN/OUT movements). JaCoCo line coverage: services 99.5% (gate ≥ 80%), overall 96.8%.
+- Frontend: `npm run lint` clean, `npm test` 31 tests passing, `npm run build` OK, line coverage 82%. `npm audit`: 0 vulnerabilities.
+- End-to-end against Docker Compose: login, role checks (401/403), stock OUT beyond stock (422), delete product with movements (409), dashboard totals, audit columns.
+
+### OWASP Top 10 checklist
+
+- [x] A01 Access control: every endpoint has a role rule; tests cover 401 (no token) and 403 (wrong role).
+- [x] A02 Crypto: BCrypt (strength 10); JWT secret validated ≥ 32 bytes at startup; HTTPS in prod via Render.
+- [x] A03 Injection: Spring Data/JPQL with bound parameters only; LIKE wildcards in user input are escaped.
+- [x] A04 Insecure design: all business rules enforced server-side and in DB constraints.
+- [x] A05 Misconfiguration: Actuator exposes health/info only; no stack traces in responses; Swagger disabled in `prod`.
+- [x] A06 Components: Spring Boot 4.1.1, current npm packages, `npm audit` clean.
+- [x] A07 Auth failures: one generic 401 message for unknown email / wrong password / deactivated user (with equal BCrypt cost); 30-min token expiry. **Gap:** no login rate limiting or lockout yet.
+- [x] A08 Integrity: Docker builds use `npm ci` from the lockfile.
+- [x] A09 Logging: login failures logged at WARN without email or password.
+- [x] A10 SSRF: no endpoint fetches user-supplied URLs.
