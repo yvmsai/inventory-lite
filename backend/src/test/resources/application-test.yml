@@ -1,0 +1,7 @@
+app:
+  security:
+    # Test-only dummy value, never used outside the test profile.
+    jwt-secret: test-only-secret-0123456789-abcdefghijklmnop
+logging:
+  level:
+    com.inventorylite: INFO
