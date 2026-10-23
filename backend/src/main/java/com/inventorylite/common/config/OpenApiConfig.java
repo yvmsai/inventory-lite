@@ -1,6 +1,7 @@
 package com.inventorylite.common.config;
 
 import java.math.BigDecimal;
+import java.util.ArrayList;
 
 import io.swagger.v3.oas.models.Components;
 import io.swagger.v3.oas.models.OpenAPI;
@@ -9,6 +10,7 @@ import io.swagger.v3.oas.models.media.StringSchema;
 import io.swagger.v3.oas.models.security.SecurityRequirement;
 import io.swagger.v3.oas.models.security.SecurityScheme;
 
+import org.springdoc.core.customizers.OpenApiCustomizer;
 import org.springdoc.core.utils.SpringDocUtils;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -29,5 +31,18 @@ class OpenApiConfig {
                 .components(new Components().addSecuritySchemes(BEARER,
                         new SecurityScheme().type(SecurityScheme.Type.HTTP).scheme("bearer").bearerFormat("JWT")))
                 .addSecurityItem(new SecurityRequirement().addList(BEARER));
+    }
+
+    /**
+     * Response records always serialize every field, so mark them all required; fields that can be null
+     * say so with {@code @Schema(types = {"string", "null"})}. This keeps the generated TypeScript types exact.
+     */
+    @Bean
+    OpenApiCustomizer responseFieldsRequired() {
+        return openApi -> openApi.getComponents().getSchemas().forEach((name, schema) -> {
+            if ((name.endsWith("Response") || name.equals("Totals")) && schema.getProperties() != null) {
+                schema.setRequired(new ArrayList<>(schema.getProperties().keySet()));
+            }
+        });
     }
 }
