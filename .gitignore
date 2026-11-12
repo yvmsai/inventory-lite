@@ -7,3 +7,5 @@ backend/target/
 frontend/node_modules/
 frontend/dist/
 frontend/coverage/
+.neon
+node_modules/
