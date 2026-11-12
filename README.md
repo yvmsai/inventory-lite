@@ -59,5 +59,19 @@ API_DOCS_URL=http://localhost:8080/v3/api-docs npm run gen:api   # regenerate AP
 
 ## Production
 
-The first ADMIN is created at startup from `ADMIN_EMAIL` / `ADMIN_PASSWORD` when no admin exists.
-Cloud deployment (Render + Neon) is set up in a later phase.
+Hosted for free on Render (API as a Docker web service, SPA as a static site) with a Neon
+PostgreSQL database, defined in [render.yaml](render.yaml). See [ADR 0004](docs/adr/0004-free-hosting.md).
+
+1. Create a Neon project and note its host, database, user and password.
+2. On Render: **New → Blueprint**, pick this repo, and fill in the `sync: false` variables:
+   `DB_URL` (`jdbc:postgresql://<host>/<database>?sslmode=require`), `DB_USERNAME`,
+   `DB_PASSWORD`, `FRONTEND_ORIGIN` (the static site's URL), `ADMIN_EMAIL`, `ADMIN_PASSWORD`,
+   and `VITE_API_BASE_URL` (the API's URL) on the static site. `JWT_SECRET` is generated.
+3. The first ADMIN is created at startup from `ADMIN_EMAIL` / `ADMIN_PASSWORD` when no admin
+   exists. Local seed data is never loaded in production.
+
+The free API service sleeps after ~15 minutes idle, so the first request after that takes
+30–60 s.
+
+CI ([.github/workflows/ci.yml](.github/workflows/ci.yml)) runs backend tests, frontend
+lint/tests/build/audit and both Docker builds on every push and pull request.
