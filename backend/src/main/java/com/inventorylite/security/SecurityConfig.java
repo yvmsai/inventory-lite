@@ -80,7 +80,7 @@ public class SecurityConfig {
     @Bean
     CorsConfigurationSource corsConfigurationSource(@Value("${app.cors.allowed-origins}") List<String> origins) {
         CorsConfiguration config = new CorsConfiguration();
-        config.setAllowedOrigins(origins);
+        config.setAllowedOrigins(normalizeOrigins(origins));
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         config.setAllowedHeaders(List.of("Authorization", "Content-Type"));
         config.setExposedHeaders(List.of("Location"));
@@ -88,6 +88,15 @@ public class SecurityConfig {
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/api/**", config);
         return source;
+    }
+
+    // Browsers send the origin without a trailing slash, so values pasted into a hosting
+    // dashboard with stray quotes, spaces or a slash would otherwise never match.
+    static List<String> normalizeOrigins(List<String> origins) {
+        return origins.stream()
+                .map(o -> o.trim().replaceAll("^[\"']+|[\"']+$", "").trim().replaceAll("/+$", ""))
+                .filter(o -> !o.isEmpty())
+                .toList();
     }
 
     private static JwtAuthenticationConverter jwtAuthenticationConverter() {
